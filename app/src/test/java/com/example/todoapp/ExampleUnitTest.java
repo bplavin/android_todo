@@ -1,4 +1,4 @@
-package com.example.appbar;
+package com.example.todoapp;
 
 import org.junit.Test;
 

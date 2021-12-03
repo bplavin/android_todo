@@ -1,8 +1,9 @@
-package com.example.appbar;
+package com.example.todoapp;
 
+import android.content.ContentValues;
 import android.content.DialogInterface;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -13,7 +14,13 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+import com.example.todoapp.db.TaskContract;
+import com.example.todoapp.db.TaskDbHelper;
+
+import todoapp.R;
+
 public class MainActivity extends AppCompatActivity {
+    TaskDbHelper mHelper;
     private static final String TAG = "MainActivity";
 
 
@@ -25,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
         Toolbar myToolbar = findViewById(R.id.toolbar);
         setSupportActionBar(myToolbar);
 
+        mHelper = new TaskDbHelper(this);
     }
 
     public boolean onCreateOptionsMenu (Menu menu) {
@@ -45,7 +53,14 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 String task = String.valueOf(taskEditText.getText());
-                                Log.d(TAG, "Task to add: " + task);
+                                SQLiteDatabase db = mHelper.getWritableDatabase();
+                                ContentValues values = new ContentValues();
+                                values.put(TaskContract.TaskEntry.COL_TASK_TITLE, task);
+                                db.insertWithOnConflict(TaskContract.TaskEntry.TABLE,
+                                        null,
+                                        values,
+                                        SQLiteDatabase.CONFLICT_REPLACE);
+                                db.close();
                             }
                         })
                         .setNegativeButton("Cancel", null)
