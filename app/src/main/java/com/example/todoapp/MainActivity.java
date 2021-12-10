@@ -2,13 +2,18 @@ package com.example.todoapp;
 
 import android.content.ContentValues;
 import android.content.DialogInterface;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
-import android.widget.Toast;
+import android.widget.ListView;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,10 +22,15 @@ import androidx.appcompat.widget.Toolbar;
 import com.example.todoapp.db.TaskContract;
 import com.example.todoapp.db.TaskDbHelper;
 
+import java.util.ArrayList;
+
 import todoapp.R;
 
 public class MainActivity extends AppCompatActivity {
+
     TaskDbHelper mHelper;
+    private ListView mTaskListView;
+    private ArrayAdapter<String> mAdapter;
     private static final String TAG = "MainActivity";
 
 
@@ -29,11 +39,61 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Toolbar myToolbar = findViewById(R.id.toolbar);
+        init();
+        updateUI();
+
+        Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
 
-        mHelper = new TaskDbHelper(this);
+
+        SQLiteDatabase db = mHelper.getReadableDatabase();
+
+        Cursor cursor = db.query(TaskContract.TaskEntry.TABLE,
+                new String[]{TaskContract.TaskEntry._ID, TaskContract.TaskEntry.COL_TASK_TITLE},
+                null, null, null, null, null);
+        while(cursor.moveToNext()) {
+            int idx = cursor.getColumnIndex(TaskContract.TaskEntry.COL_TASK_TITLE);
+            Log.d(TAG, "Task: " + cursor.getString(idx));
+        }
+
+        cursor.close();
+        db.close();
     }
+
+    public void init() {
+        mHelper = new TaskDbHelper(this);
+        mTaskListView = findViewById(R.id.list_todo);
+    }
+
+    public void updateUI() {
+        ArrayList<String> taskList = new ArrayList<>();
+        SQLiteDatabase db = mHelper.getReadableDatabase();
+        Cursor cursor = db.query(TaskContract.TaskEntry.TABLE,
+                new String[]{TaskContract.TaskEntry._ID, TaskContract.TaskEntry.COL_TASK_TITLE},
+                null, null, null, null, null);
+
+        while (cursor.moveToNext()) {
+            int idx = cursor.getColumnIndex(TaskContract.TaskEntry.COL_TASK_TITLE);
+            taskList.add(cursor.getString(idx));
+            Log.d("Reading DATA", "Task" + cursor.getString(idx));
+        }
+
+        if (mAdapter == null) {
+            mAdapter = new ArrayAdapter<>(this,
+                    R.layout.item_todo,
+                    R.id.task_title,
+                    taskList);
+            mTaskListView.setAdapter(mAdapter);
+        } else {
+            mAdapter.clear();
+            mAdapter.addAll(taskList);
+            mAdapter.notifyDataSetChanged();
+        }
+
+        cursor.close();
+        db.close();
+    }
+
 
     public boolean onCreateOptionsMenu (Menu menu) {
         MenuInflater inflater = getMenuInflater();
@@ -41,9 +101,24 @@ public class MainActivity extends AppCompatActivity {
         return super.onCreateOptionsMenu(menu);
     }
 
+    public void deleteTask(View view) {
+        View parent = (View) view.getParent();
+
+        TextView taskTextView = (TextView) parent.findViewById(R.id.task_title);
+
+        String task = String.valueOf(taskTextView.getText());
+        SQLiteDatabase db = mHelper.getWritableDatabase();
+        db.delete(TaskContract.TaskEntry.TABLE,
+                TaskContract.TaskEntry.COL_TASK_TITLE + " = ?",
+                new String[]{task});
+
+        db.close();
+        updateUI();
+    }
+
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.item1:
+            case R.id.action_add_task:
                 final EditText taskEditText = new EditText(this);
                 AlertDialog dialog = new AlertDialog.Builder(this)
                         .setTitle("Add a new task")
@@ -61,28 +136,17 @@ public class MainActivity extends AppCompatActivity {
                                         values,
                                         SQLiteDatabase.CONFLICT_REPLACE);
                                 db.close();
+                                updateUI();
                             }
                         })
                         .setNegativeButton("Cancel", null)
                         .create();
                 dialog.show();
+
                 return true;
 
-            case R.id.item2:
-                Toast.makeText(getApplicationContext(),
-                        "Item 2 selected",
-                        Toast.LENGTH_LONG)
-                        .show();
-                return true;
-            case R.id.item3:
-                Toast.makeText(getApplicationContext(),
-                        "Item 3 selected",
-                        Toast.LENGTH_LONG)
-                        .show();
-                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
-
 }
